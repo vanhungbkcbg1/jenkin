@@ -1,0 +1,29 @@
+pipeline {
+   agent any
+
+   environment{
+       host="54.250.81.32"
+   }
+
+   stages {
+      stage('Hello') {
+         steps {
+            echo "get aws credential"
+            script{
+                  def remote = [:]
+                  remote.name="ssh"
+                  remote.allowAnyHosts=true
+                  remote.host=host
+                 withCredentials([sshUserPrivateKey(credentialsId: 'ssh', keyFileVariable: 'identity', passphraseVariable: '', usernameVariable: 'userName')]) {
+                    remote.user = userName
+                    remote.identityFile = identity
+                    stage("SSH Steps Rocks!") {
+                        sshCommand remote: remote, command: 'ls -la'
+                }
+              }
+            }
+
+         }
+      }
+   }
+}

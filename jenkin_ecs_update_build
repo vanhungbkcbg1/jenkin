@@ -1,0 +1,55 @@
+pipeline{
+    agent any
+    environment{
+        registry = "hello12/php_client"
+        registryCredential = 'dockerhub'
+        dockerImage = ''
+        task_def_arn="arn:aws:ecs:ap-northeast-1:154713672373:task-definition/jenkin_php_client"
+        exec_role_arn="arn:aws:iam::154713672373:role/ecsTaskExecutionRole"
+        region="ap-northeast-1"
+        cluster="arn:aws:ecs:ap-northeast-1:154713672373:cluster/hello"
+    }
+    stages{
+        stage("checkout"){
+            steps{
+                git(url:"https://github.com/vanhungbkcbg1/ecs_simple_php.git",
+                branch: "master",
+                credentialsId: "github")
+            }
+        }
+
+        stage("build image"){
+            steps{
+                 script {
+                    dockerImage = docker.build(registry + ":$BUILD_NUMBER","-f Dockerfile_php . ")
+              }
+            }
+        }
+        stage("push image to docker hub"){
+            steps{
+                script{
+                  docker.withRegistry( '', registryCredential ) {
+                        dockerImage.push()
+                    }
+              }
+            }
+        }
+
+        stage("update service ecs"){
+            steps{
+                withAWS(region:'ap-northeast-1',credentials:"aws_ecr") {
+                    sh "sed -i 's|{{build_tag}}|$BUILD_NUMBER|' task.json"
+                    sh "aws ecs register-task-definition --execution-role-arn ${exec_role_arn} --cli-input-json file://task.json --region ${region}"
+                    sh "aws ecs update-service --cluster ${cluster} --service hello --task-definition ${task_def_arn} --region ${region} --force-new-deployment"
+                }
+
+
+            }
+        }
+        stage("remove temp image"){
+            steps{
+              sh "docker rmi $registry:$BUILD_NUMBER"
+          }
+        }
+    }
+}

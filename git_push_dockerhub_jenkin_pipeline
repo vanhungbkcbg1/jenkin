@@ -1,0 +1,63 @@
+pipeline {
+   agent any
+   environment {
+    registry = "hello12/docker-test"
+    registryCredential = 'dockerhub'
+    registryCredentialAWS ="ecr:ap-northeast-1:aws_ecr"
+    aws_region="ap-northeast-1"
+    aws_ecr_registry="docker-test"
+    dockerImage = ''
+  }
+   stages {
+      stage('Clone git') {
+          steps{
+            git(url:"https://gitlab.com/hungnv/club.git",
+                branch: "master",
+                credentialsId: "gitlab")
+            sh "pwd"
+
+            sh 'ls -la'
+            echo "$BUILD_NUMBER"
+          }
+
+      }
+
+      stage("build image"){
+          steps{
+
+              script {
+                    dockerImage = docker.build(registry + ":$BUILD_NUMBER")
+              }
+          }
+      }
+
+      stage("push image to docker registry"){
+          steps{
+              script{
+                  docker.withRegistry( '', registryCredential ) {
+                        dockerImage.push()
+                    }
+              }
+          }
+      }
+
+      stage("push image to aws"){
+          steps{
+              script{
+
+                docker.withRegistry('https://154713672373.dkr.ecr.ap-northeast-1.amazonaws.com', registryCredentialAWS) {
+
+                    dockerImage = docker.build(aws_ecr_registry + ":$BUILD_NUMBER")
+                    dockerImage.push()
+                  }
+              }
+          }
+      }
+      stage("remove docker"){
+          steps{
+              sh "docker rmi $registry:$BUILD_NUMBER"
+              sh "docker rmi $aws_ecr_registry:$BUILD_NUMBER"
+          }
+      }
+   }
+}
