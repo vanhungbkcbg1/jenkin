@@ -1,0 +1,4 @@
+Setup Payload URL tren github
+http://52.196.196.109:8080/github-webhook/ trong do 52.196.196.109 la jenkin server
+make sure Recent Deliveries co trang thai la 200
+xem them trong image github_hook.png
